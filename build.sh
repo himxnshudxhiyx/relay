@@ -80,6 +80,12 @@ if [ "$INSTALL" = "1" ]; then
     pkill -x Relay 2>/dev/null && sleep 1 || true
     rm -rf /Applications/Relay.app
     cp -R "$APP" /Applications/Relay.app
+    # Leave exactly one copy on disk. Spotlight and Launchpad index the build
+    # folder too, which otherwise shows Relay twice.
+    LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+    "$LSREGISTER" -u "$APP" 2>/dev/null || true
+    rm -rf "$APP" build/Relay.icns
+    "$LSREGISTER" -f /Applications/Relay.app 2>/dev/null || true
     echo "▸ Installed to /Applications/Relay.app"
 else
     echo "▸ Built $APP"
