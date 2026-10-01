@@ -3,12 +3,14 @@ import SwiftUI
 
 struct RequestEditor: View {
     let tab: RequestTab
+    /// Fixed height for the section content; `nil` fills the space.
+    var contentHeight: CGFloat?
     private let ws = Workspace.shared
 
     var body: some View {
         let draft = tab.draft
         let section = Binding(
-            get: { ws.editorSections[tab.id] ?? (draft.body.mode != .none ? .body : .params) },
+            get: { ws.editorSections[tab.id] ?? .body },
             set: { ws.editorSections[tab.id] = $0 }
         )
         VStack(spacing: 0) {
@@ -16,7 +18,7 @@ struct RequestEditor: View {
                 UnderlineTabs(items: tabItems(draft), selection: section)
                 Spacer()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
             Divider()
             Group {
                 switch section.wrappedValue {
@@ -27,6 +29,7 @@ struct RequestEditor: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(height: contentHeight)
         }
         .background(Theme.canvas)
     }
@@ -69,10 +72,10 @@ extension BodyMode {
 extension Theme {
     static func variableNSColor(_ source: VariableScope.Source) -> NSColor {
         switch source {
-        case .environment: return .dynamic(light: 0x15803D, dark: 0x4ADE80)
-        case .collection:  return .dynamic(light: 0x1D4ED8, dark: 0x60A5FA)
-        case .dynamic:     return .dynamic(light: 0x7E22CE, dark: 0xC084FC)
-        case .missing:     return .dynamic(light: 0xB91C1C, dark: 0xF87171)
+        case .environment: return .dynamic(light: 0x0F8A55, dark: 0x5BD69B)
+        case .collection:  return .dynamic(light: 0x1F6FD1, dark: 0x62B3F5)
+        case .dynamic:     return .dynamic(light: 0x7B4FE0, dark: 0xB79CF7)
+        case .missing:     return .dynamic(light: 0xD33A2F, dark: 0xF2675F)
         }
     }
 }
@@ -112,16 +115,16 @@ struct KeyValueSection<Accessory: View>: View {
                     .help(bulk ? "Back to the table" : "Edit as text, one “key: value” per line")
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 8)
 
             if bulk {
                 CodeEditor(text: $bulkText, language: .plain)
-                    .background(Theme.field.opacity(0.6))
+                    .background(Theme.editor)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.line))
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 16)
                     .onChange(of: bulkText) { _, text in
                         rows = BulkEdit.parse(text, previous: rows)
@@ -130,7 +133,7 @@ struct KeyValueSection<Accessory: View>: View {
                 ScrollView {
                     KeyValueTable(rows: $rows, keyPlaceholder: keyPlaceholder, valuePlaceholder: valuePlaceholder,
                                   allowsFiles: allowsFiles, allowsSecrets: allowsSecrets)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 20)
                         .padding(.bottom, 16)
                 }
             }
@@ -247,9 +250,9 @@ private struct HeadersSection: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                .background(Theme.field.opacity(0.5))
+                .background(Theme.editor)
             }
         }
     }
@@ -296,13 +299,13 @@ private struct BodyEditor: View {
                 if mode == .json {
                     JSONStatus(text: request.body.raw)
                     Button("Beautify") { beautify(request.body.raw, xml: false) }
-                        .buttonStyle(SecondaryButtonStyle(height: 24))
+                        .buttonStyle(SecondaryButtonStyle(height: 28))
                 } else if mode == .xml {
                     Button("Beautify") { beautify(request.body.raw, xml: true) }
-                        .buttonStyle(SecondaryButtonStyle(height: 24))
+                        .buttonStyle(SecondaryButtonStyle(height: 28))
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
             .padding(.vertical, 8)
 
             switch mode {
@@ -314,10 +317,10 @@ private struct BodyEditor: View {
                 CodeEditor(text: ws.binding(tabID, \.body.raw),
                            language: mode == .json ? .json : (mode == .xml ? .xml : .plain),
                            variableColor: { Theme.variableNSColor(scope.source(of: $0)) })
-                    .background(Theme.field.opacity(0.5))
+                    .background(Theme.editor)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.line))
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 16)
             case .form:
                 KeyValueSection(caption: "Sent as application/x-www-form-urlencoded.",
@@ -349,11 +352,11 @@ private struct ModeChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.app(11.5, selected ? .semibold : .medium))
+                .font(.app(12.5, selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Theme.accent : Color.secondary)
-                .padding(.horizontal, 9)
-                .frame(height: 24)
-                .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Theme.accent.opacity(0.12) : (hovering ? Theme.hover : .clear)))
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Theme.accentSoft : (hovering ? Theme.hover : .clear)))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -370,10 +373,13 @@ private struct JSONStatus: View {
             // Unquoted {{vars}} are valid once substituted, so judge the JSON around them.
             let probe = trimmed.replacingOccurrences(of: #"\{\{[^{}]*\}\}"#, with: "0", options: .regularExpression)
             let valid = JSONFormat.isJSON(probe)
-            Label(valid ? "Valid JSON" : "Invalid JSON", systemImage: valid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                .font(.app(11, .medium))
-                .foregroundStyle(valid ? Theme.green : Theme.amber)
-                .padding(.trailing, 4)
+            HStack(spacing: 6) {
+                Circle().frame(width: 6, height: 6)
+                Text(valid ? "Valid JSON" : "Invalid JSON").lineLimit(1).fixedSize()
+            }
+            .font(.app(12, .medium))
+            .foregroundStyle(valid ? Theme.green : Theme.amber)
+            .padding(.trailing, 6)
         }
     }
 }

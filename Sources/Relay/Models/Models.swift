@@ -177,6 +177,14 @@ extension Auth: Codable {
 // MARK: - Request
 
 struct APIRequest: Hashable, Identifiable {
+    /// What New Request starts from. `APIRequest()` stays body-less, because
+    /// imports and decoding build on it and must not gain a body.
+    static var blank: APIRequest {
+        var r = APIRequest()
+        r.body.mode = .json
+        return r
+    }
+
     static let methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
 
     var id = UUID()

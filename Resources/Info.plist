@@ -13,7 +13,6 @@
     <key>LSMinimumSystemVersion</key>    <string>14.0</string>
     <key>LSApplicationCategoryType</key> <string>public.app-category.developer-tools</string>
     <key>NSHighResolutionCapable</key>   <true/>
-    <key>ATSApplicationFontsPath</key>   <string>Fonts</string>
     <!-- An API client has to reach plain-http and self-hosted servers. -->
     <key>NSAppTransportSecurity</key>
     <dict>

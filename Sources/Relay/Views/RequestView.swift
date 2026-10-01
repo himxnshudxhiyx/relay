@@ -5,14 +5,17 @@ struct RequestView: View {
     let tabID: UUID
     private let ws = Workspace.shared
     @AppStorage("layout") private var layout = PaneLayout.stacked
+    /// The editor height you dragged to; 0 means the default.
+    @AppStorage("editorHeight") private var editorHeight = 0.0
+    @State private var dragStart: CGFloat?
 
     var body: some View {
         if let tab = ws.tab(tabID) {
             VStack(spacing: 0) {
                 RequestHeader(tab: tab)
                 URLBar(tabID: tabID)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 10)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
                 VariableHints(tab: tab)
                 Divider()
                 if layout == .sideBySide {
@@ -23,15 +26,61 @@ struct RequestView: View {
                             .frame(minWidth: 340, maxWidth: .infinity, maxHeight: .infinity)
                     }
                 } else {
-                    VSplitView {
-                        RequestEditor(tab: tab)
-                            .frame(maxWidth: .infinity, minHeight: 170, maxHeight: .infinity)
-                        ResponsePanel(tabID: tabID)
-                            .frame(maxWidth: .infinity, minHeight: 200, maxHeight: .infinity)
+                    // Editor pinned under the URL bar, response takes the rest. A
+                    // VSplitView here re-split itself on every response and
+                    // opened a gap above the tabs, so the divider is our own.
+                    GeometryReader { geo in
+                        // Keep room for the editor's tab row and a usable response.
+                        let maxHeight = max(geo.size.height - 260, 100)
+                        let height = min(max(editorHeight > 0 ? editorHeight : defaultEditorHeight, 100), maxHeight)
+                        VStack(spacing: 0) {
+                            RequestEditor(tab: tab, contentHeight: height)
+                            ResizeHandle(
+                                onDrag: { dy in
+                                    let start = dragStart ?? height
+                                    dragStart = start
+                                    editorHeight = min(max(start + dy, 100), maxHeight)
+                                },
+                                onEnd: { dragStart = nil },
+                                onReset: { editorHeight = 0 }
+                            )
+                            ResponsePanel(tabID: tabID)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/// 0.2 of the screen's height.
+// ponytail: read on redraw, not on screen change; observe
+// NSWindow.didChangeScreenNotification if that matters.
+private var defaultEditorHeight: CGFloat { (NSScreen.main?.frame.height ?? 900) * 0.2 }
+
+/// The divider between editor and response: drag to resize, double-click to reset.
+private struct ResizeHandle: View {
+    let onDrag: (CGFloat) -> Void
+    let onEnd: () -> Void
+    let onReset: () -> Void
+
+    var body: some View {
+        // A 7pt grab strip around a hairline.
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 7)
+            .overlay(Divider())
+            .contentShape(Rectangle())
+            .onHover { inside in
+                if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+            }
+            // Global space: the handle moves while dragged, so local translation would jitter.
+            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { onDrag($0.translation.height) }
+                .onEnded { _ in onEnd() })
+            .onTapGesture(count: 2, perform: onReset)
+            .help("Drag to resize. Double-click to reset.")
     }
 }
 
@@ -55,7 +104,7 @@ private struct RequestHeader: View {
                 }
                 TextField("Request name", text: ws.binding(tab.id, \.name))
                     .textFieldStyle(.plain)
-                    .font(.app(16, .semibold))
+                    .font(.app(18, .semibold))
             }
 
             Spacer(minLength: 12)
@@ -66,7 +115,7 @@ private struct RequestHeader: View {
                 Divider()
                 Button("Replace with cURL from Clipboard") { replaceFromClipboard() }
             } label: {
-                Label("cURL", systemImage: "terminal")
+                Text("cURL").font(.app(13, .medium))
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -75,15 +124,14 @@ private struct RequestHeader: View {
             Button {
                 ws.save(tab.id)
             } label: {
-                Label(tab.collectionID == nil ? "Save…" : "Save", systemImage: "square.and.arrow.down")
-                    .labelStyle(.titleAndIcon)
+                Text(tab.collectionID == nil ? "Save…" : "Save")
             }
-            .buttonStyle(SecondaryButtonStyle(height: 30))
+            .buttonStyle(SecondaryButtonStyle(height: 32))
             .disabled(tab.collectionID != nil && !tab.isDirty)
             .help("Save (⌘S)")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
         .padding(.bottom, 10)
     }
 
@@ -114,7 +162,7 @@ struct URLBar: View {
                 VariableTextField(
                     text: urlBinding,
                     placeholder: "Enter a URL, or paste a cURL command",
-                    fontSize: 13,
+                    fontSize: 13.5,
                     focusRequest: ws.urlFocusRequest,
                     focusOnAppear: ws.tab(tabID)?.draft.url.isEmpty == true,
                     onPasteCurl: { pasted in
@@ -127,25 +175,25 @@ struct URLBar: View {
                 )
                 .padding(.horizontal, 10)
             }
-            .frame(height: 36)
+            .frame(height: 40)
             .background(RoundedRectangle(cornerRadius: 8).fill(Theme.field))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(focused ? Theme.accent.opacity(0.6) : Theme.line))
 
             if loading {
                 Button { ws.cancel(tabID) } label: {
-                    Text("Cancel").frame(width: 70)
+                    Text("Cancel").frame(width: 76)
                 }
-                .buttonStyle(SecondaryButtonStyle(height: 36))
+                .buttonStyle(SecondaryButtonStyle(height: 40))
                 .help("Cancel (⌘.)")
             } else {
                 Button { ws.send(tabID) } label: {
-                    HStack(spacing: 6) {
-                        Text("Send")
-                        Image(systemName: "paperplane.fill").font(.system(size: 11))
+                    HStack(spacing: 7) {
+                        Text("Send").font(.app(14, .bold))
+                        Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold))
                     }
-                    .frame(width: 70)
+                    .frame(width: 76)
                 }
-                .buttonStyle(PrimaryButtonStyle(height: 36))
+                .buttonStyle(PrimaryButtonStyle(height: 40))
                 .help("Send (⌘↩)")
             }
         }
@@ -155,7 +203,13 @@ struct URLBar: View {
         Binding(
             get: { ws.tab(tabID)?.draft.url ?? "" },
             set: { newValue in
+                let unsaved = ws.tab(tabID)?.collectionID == nil
                 ws.updateDraft(tabID) {
+                    // A placeholder or URL-derived name follows the URL as you type;
+                    // one you chose, or one saved in a collection, stays.
+                    if unsaved, $0.name == APIRequest().name || $0.name == CurlParser.requestName(for: $0.url) {
+                        $0.name = CurlParser.requestName(for: newValue)
+                    }
                     $0.url = newValue
                     $0.params = URLQuery.params(fromURL: newValue, previous: $0.params)
                 }
@@ -183,13 +237,13 @@ private struct MethodPicker: View {
         Button { open.toggle() } label: {
             HStack(spacing: 5) {
                 Text(method)
-                    .font(.code(12.5, .bold))
+                    .font(.code(13, .bold))
                     .foregroundStyle(Theme.method(method))
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.tertiary)
             }
-            .frame(width: 96, height: 36)
+            .frame(width: 100, height: 40)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -251,7 +305,7 @@ private struct VariableHints: View {
                         chip(name, scope: scope)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
             }
             .padding(.bottom, 9)
         }

@@ -21,7 +21,7 @@ struct TabStripView: View {
             IconButton(symbol: "plus", help: "New Request (⌘T)") { ws.newTab() }
                 .padding(.horizontal, 6)
         }
-        .frame(height: 36)
+        .frame(height: 40)
         .background(Theme.chrome)
     }
 }
@@ -36,12 +36,14 @@ private struct TabChip: View {
         let loading = ws.responses[tab.id]?.isLoading ?? false
 
         HStack(spacing: 7) {
-            MethodBadge(method: tab.draft.method, size: 9.5)
+            MethodBadge(method: tab.draft.method, size: 10.5)
             Text(tab.draft.name)
-                .font(.app(12, selected ? .medium : .regular))
+                .font(.app(12.5, selected ? .medium : .regular))
                 .foregroundStyle(selected ? Color.primary : Color.secondary)
                 .opacity(tab.isPreview ? 0.8 : 1)
                 .lineLimit(1)
+                // URL-like names share a host; keep the end of the path visible.
+                .truncationMode(.middle)
             ZStack {
                 if loading {
                     ProgressView().controlSize(.mini)
@@ -56,14 +58,14 @@ private struct TabChip: View {
                     .buttonStyle(.plain)
                     .help("Close Tab (⌘W)")
                 } else if tab.isDirty {
-                    Circle().fill(Theme.accent).frame(width: 7, height: 7)
+                    Circle().fill(Color.secondary).frame(width: 6, height: 6)
                 }
             }
             .frame(width: 16, height: 16)
         }
         .padding(.leading, 12)
         .padding(.trailing, 7)
-        .frame(height: 36)
+        .frame(height: 40)
         .frame(maxWidth: 230)
         .background(selected ? Theme.canvas : (hovering ? Theme.hover : .clear))
         .overlay(alignment: .top) {

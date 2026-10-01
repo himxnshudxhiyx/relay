@@ -214,4 +214,12 @@ final class CoreTests: XCTestCase {
         let text = Format.curlWithResponse(curl: "curl https://x.test", result: result, includeHeaders: true)
         XCTAssertEqual(text, "curl https://x.test\n\nHTTP 201 Created  (123 ms, 8 B)\nContent-Type: application/json\n\n{\n  \"id\": 1\n}")
     }
+
+    func testResponseFileNameFollowsTheRequest() {
+        let url = "https://devgoapi.livekeeping.com/v1/gst/gstr1/getSection?page=1"
+        XCTAssertEqual(Format.responseFileName(name: CurlParser.requestName(for: url), url: url), "gst/gstr1/getSection")
+        XCTAssertEqual(Format.responseFileName(name: "Untitled Request", url: "localhost:8000/users"), "users")
+        XCTAssertEqual(Format.responseFileName(name: "GST Summary", url: url), "GST Summary", "a chosen name wins")
+        XCTAssertEqual(Format.responseFileName(name: "Untitled Request", url: "https://x.test/"), "response")
+    }
 }

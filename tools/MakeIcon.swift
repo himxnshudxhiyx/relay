@@ -28,7 +28,7 @@ func render(_ pixels: Int) -> Data {
     ctx.saveGState()
     ctx.setShadow(offset: CGSize(width: 0, height: -s * 0.012), blur: s * 0.03, color: color(0x000000, 0.25))
     ctx.addPath(tile)
-    ctx.setFillColor(color(0x4338CA))
+    ctx.setFillColor(color(0xA6D11F))
     ctx.fillPath()
     ctx.restoreGState()
 
@@ -36,7 +36,7 @@ func render(_ pixels: Int) -> Data {
     ctx.addPath(tile)
     ctx.clip()
     let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                              colors: [color(0x8B7CFF), color(0x4338CA)] as CFArray, locations: [0, 1])!
+                              colors: [color(0xD8FB6A), color(0xA6D11F)] as CFArray, locations: [0, 1])!
     ctx.drawLinearGradient(gradient, start: CGPoint(x: rect.minX, y: rect.maxY),
                            end: CGPoint(x: rect.maxX, y: rect.minY), options: [])
     ctx.restoreGState()
@@ -50,7 +50,7 @@ func render(_ pixels: Int) -> Data {
 
     // Request: →
     let upper = rect.midY + rect.height * 0.115
-    ctx.setStrokeColor(color(0xFFFFFF))
+    ctx.setStrokeColor(color(0x0B0B0B))
     ctx.move(to: CGPoint(x: left, y: upper))
     ctx.addLine(to: CGPoint(x: right, y: upper))
     ctx.move(to: CGPoint(x: right - head, y: upper + head))
@@ -60,7 +60,7 @@ func render(_ pixels: Int) -> Data {
 
     // Response: ←
     let lower = rect.midY - rect.height * 0.115
-    ctx.setStrokeColor(color(0xFFFFFF, 0.62))
+    ctx.setStrokeColor(color(0x0B0B0B, 0.55))
     ctx.move(to: CGPoint(x: right, y: lower))
     ctx.addLine(to: CGPoint(x: left, y: lower))
     ctx.move(to: CGPoint(x: left + head, y: lower + head))

@@ -92,7 +92,9 @@ enum RequestPreparer {
             body = .file(path: r(request.body.filePath))
         }
 
-        if let type = request.body.mode.contentType, !has("Content-Type") {
+        // An empty JSON/Text/XML body sends nothing, so it implies no Content-Type.
+        let empty = request.body.mode.isRaw && request.body.raw.isEmpty
+        if let type = request.body.mode.contentType, !empty, !has("Content-Type") {
             headers.append(("Content-Type", type))
         }
 

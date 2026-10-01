@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SidebarView: View {
@@ -5,47 +6,51 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SidebarModePicker(mode: $ws.sidebarMode)
+            PillPicker(options: [(SidebarMode.collections, "Collections"), (.environments, "Environments"), (.history, "History")],
+                       selection: $ws.sidebarMode, fontSize: 13, height: 32)
                 .padding(.horizontal, 10)
                 .padding(.top, 4)
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
             switch ws.sidebarMode {
             case .collections:  CollectionsPane()
             case .environments: EnvironmentsPane()
             case .history:      HistoryPane()
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.chrome.ignoresSafeArea())
+        .background(ThemedDivider())
     }
 }
 
-private struct SidebarModePicker: View {
-    @Binding var mode: SidebarMode
+/// The sidebar's divider in the theme's hairline colour. The system one is
+/// darker than every other line in the app, and SwiftUI offers no way to set
+/// it, so the window's split view gets a subclass that only overrides the colour.
+private struct ThemedDivider: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { Finder() }
+    func updateNSView(_ view: NSView, context: Context) {}
 
-    var body: some View {
-        HStack(spacing: 2) {
-            item(.collections, "Collections", "tray.full")
-            item(.environments, "Environments", "square.stack.3d.up")
-            item(.history, "History", "clock.arrow.circlepath")
+    final class Finder: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            var view = superview
+            while let current = view, !(current is NSSplitView) { view = current.superview }
+            // Only a plain NSSplitView: a KVO or other subclass is left alone.
+            guard let split = view as? NSSplitView, type(of: split) == NSSplitView.self else { return }
+            object_setClass(split, ThemedSplitView.self)
+            split.needsDisplay = true
         }
-        .padding(2)
-        .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(0.06)))
     }
+}
 
-    private func item(_ value: SidebarMode, _ title: String, _ symbol: String) -> some View {
-        let selected = mode == value
-        return Button { mode = value } label: {
-            VStack(spacing: 2) {
-                Image(systemName: symbol).font(.system(size: 12, weight: .medium))
-                Text(title).font(.app(10, .medium)).lineLimit(1).minimumScaleFactor(0.8)
-            }
-            .foregroundStyle(selected ? Theme.accent : Color.secondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 7).fill(selected ? Theme.canvas : .clear)
-                .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 1, y: 0.5))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+/// Adds no stored properties, so swapping an NSSplitView's class to it is safe.
+private final class ThemedSplitView: NSSplitView {
+    private static let color = NSColor.dynamic(light: 0xE6E6E4, dark: 0x222222)
+    override var dividerColor: NSColor { Self.color }
+    // The thin style draws its own system colour and ignores `dividerColor`.
+    override func drawDivider(in rect: NSRect) {
+        Self.color.setFill()
+        rect.fill()
     }
 }
 
@@ -63,8 +68,8 @@ private struct SidebarFooter<Content: View>: View {
             .frame(height: 34)
         }
         .buttonStyle(.plain)
-        .font(.app(12, .medium))
-        .foregroundStyle(.secondary)
+        .font(.app(12.5, .medium))
+        .foregroundStyle(Theme.accent)
     }
 }
 
@@ -75,7 +80,8 @@ private struct CollectionsPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SearchField(placeholder: "Search requests", text: $ws.search)
+            SearchField(placeholder: "Search requests", text: $ws.search, shortcut: "⌘K",
+                        focusRequest: ws.searchFocusRequest)
                 .padding(.horizontal, 10)
                 .padding(.bottom, 4)
 
@@ -208,15 +214,16 @@ private struct CollectionRow: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            Image(systemName: "shippingbox.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.accent)
-            RenamableText(id: collection.id, name: collection.name, font: .app(12.5, .semibold))
+            RenamableText(id: collection.id, name: collection.name, font: .app(13, .semibold))
             Spacer(minLength: 4)
             Text("\(collection.items.requestCount)")
                 .font(.app(10.5))
                 .foregroundStyle(.tertiary)
         }
+        // The system draws the disclosure arrow 1pt above the centre of a
+        // bold name; lift the label to meet it and give the arrow some room.
+        .padding(.leading, 3)
+        .offset(y: -1)
         .contentShape(Rectangle())
         .dropDestination(for: String.self) { ids, _ in dropItems(ids, on: .collection(collection.id)) }
         .contextMenu {
@@ -243,7 +250,7 @@ private struct FolderRow: View {
             Image(systemName: "folder")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            RenamableText(id: folder.id, name: folder.name, font: .app(12.5, .medium))
+            RenamableText(id: folder.id, name: folder.name, font: .app(13))
             Spacer(minLength: 4)
             if folder.auth.type != .inherit {
                 Image(systemName: "key")
@@ -278,9 +285,10 @@ private struct RequestRow: View {
     var body: some View {
         let dirty = ws.tabs.contains { $0.collectionID == collectionID && $0.draft.id == request.id && $0.isDirty }
         HStack(spacing: 6) {
-            MethodBadge(method: request.method, size: 9.5)
-                .frame(width: 36, alignment: .leading)
-            RenamableText(id: request.id, name: request.name, font: .app(12.5))
+            MethodBadge(method: request.method, size: 10)
+                .frame(width: 44, alignment: .leading)
+            RenamableText(id: request.id, name: request.name, font: .app(13))
+                .foregroundStyle(.secondary)
             Spacer(minLength: 4)
             if dirty {
                 Circle().fill(Theme.accent).frame(width: 6, height: 6).help("Unsaved changes")

@@ -30,6 +30,17 @@ struct ResponsePanel: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.panel)
+        // Cross-fade between empty, loading, error and the response.
+        .animation(.easeOut(duration: 0.18), value: stage)
+    }
+
+    private var stage: Int {
+        switch ws.responses[tabID] ?? .idle {
+        case .idle:    return 0
+        case .loading: return 1
+        case .failed:  return 2
+        case .done:    return 3
+        }
     }
 }
 
@@ -80,7 +91,8 @@ private struct ResponseContent: View {
                 }
                 .padding(.bottom, 7)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
+            .background(Theme.chrome)
             Divider()
 
             switch section.wrappedValue {
@@ -92,25 +104,22 @@ private struct ResponseContent: View {
     }
 
     private func summary(compact: Bool) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             StatusPill(code: result.status)
             if !compact {
-                metric("clock", Format.duration(result.duration))
+                metric(Format.duration(result.duration))
                     .help(result.ttfb.map { "Time to first byte: \(Format.duration($0))" } ?? "Total time")
-                metric("arrow.down.circle", Format.bytes(result.body.count))
+                metric(Format.bytes(result.body.count))
                     .help("Response body size")
             }
+            Rectangle().fill(Theme.line).frame(width: 1, height: 16)
             CopyMenu(tabID: tabID, result: result)
         }
         .fixedSize()
     }
 
-    private func metric(_ symbol: String, _ value: String) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol).font(.system(size: 10))
-            Text(value).font(.app(12, .medium)).monospacedDigit()
-        }
-        .foregroundStyle(.secondary)
+    private func metric(_ value: String) -> some View {
+        Text(value).font(.code(12)).foregroundStyle(.secondary)
     }
 
     @ViewBuilder private var bodyView: some View {
@@ -132,14 +141,8 @@ private struct ResponseContent: View {
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
                     if result.pretty != nil {
-                        Picker("Format", selection: $pretty) {
-                            Text("Pretty").tag(true)
-                            Text("Raw").tag(false)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .controlSize(.small)
-                        .frame(width: 120)
+                        PillPicker(options: [(true, "Pretty"), (false, "Raw")], selection: $pretty)
+                            .fixedSize()
                     }
                     Text(kindLabel)
                         .font(.app(11))
@@ -153,11 +156,10 @@ private struct ResponseContent: View {
                     }
                     IconButton(symbol: "square.and.arrow.down", help: "Save response to a file") { saveBody() }
                 }
-                .padding(.horizontal, 12)
-                .frame(height: 34)
-                Divider()
+                .padding(.horizontal, 20)
+                .frame(height: 42)
                 CodeEditor(content: pretty ? (result.pretty ?? result.text) : result.text,
-                           language: language, wraps: wrap)
+                           language: language, wraps: wrap, folds: language == .json)
             }
         }
     }
@@ -190,7 +192,11 @@ private struct ResponseContent: View {
     private func saveBody() {
         let mime = result.contentType.components(separatedBy: ";").first?.trimmingCharacters(in: .whitespaces) ?? ""
         let ext = UTType(mimeType: mime)?.preferredFilenameExtension ?? "txt"
-        FilePanels.save(result.body, suggestedName: "response.\(ext)")
+        let request = ws.tab(tabID)?.draft ?? APIRequest()
+        let name = Format.responseFileName(name: request.name, url: request.url)
+        // Saved as shown: formatted while Pretty is on, the server's bytes on Raw.
+        let data = pretty ? result.pretty.map { Data($0.utf8) } ?? result.body : result.body
+        FilePanels.save(data, suggestedName: "\(name).\(ext)")
     }
 }
 
@@ -207,15 +213,13 @@ private struct CopyMenu: View {
             Button {
                 ws.copy(Format.curlWithResponse(curl: result.curl, result: result, includeHeaders: false), "cURL and response")
             } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "terminal").font(.system(size: 10.5, weight: .semibold))
-                    Text("Copy with cURL").font(.app(12, .semibold))
-                }
-                .foregroundStyle(Theme.accent)
-                .padding(.horizontal, 9)
-                .frame(height: 24)
-                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.accent.opacity(hovering ? 0.18 : 0.11)))
-                .contentShape(Rectangle())
+                Text("Copy with cURL")
+                    .font(.app(12.5, .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 6)
+                    .frame(height: 24)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(hovering ? Theme.accentSoft : .clear))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
@@ -241,7 +245,7 @@ private struct CopyMenu: View {
             Divider()
             Button("cURL That Was Sent") { ws.copy(result.curl, "cURL") }
         } label: {
-            Label("Copy", systemImage: "doc.on.doc")
+            Text("Copy").font(.app(12.5, .medium))
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
@@ -266,7 +270,7 @@ struct HeaderRows: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
                 .padding(.vertical, 7)
                 .contextMenu {
                     Button("Copy Value") { Clipboard.copy(header.value) }

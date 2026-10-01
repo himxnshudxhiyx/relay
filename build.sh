@@ -47,9 +47,6 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Relay"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp build/Relay.icns "$APP/Contents/Resources/Relay.icns"
-# Poppins, registered via ATSApplicationFontsPath in Info.plist.
-# OFL.txt travels with the fonts — the licence requires it.
-cp -R Resources/Fonts "$APP/Contents/Resources/Fonts"
 
 # Ad-hoc signature: enough for Apple silicon to launch it. Another Mac will
 # still ask for confirmation on first open (see README).
@@ -76,8 +73,14 @@ if [ "$DMG" = "1" ]; then
 fi
 
 if [ "$INSTALL" = "1" ]; then
-    # Quit a running copy so the new one is what opens next.
-    pkill -x Relay 2>/dev/null && sleep 1 || true
+    # Quit a running copy so the new one is what opens next. Ask it to quit
+    # rather than kill it: SIGTERM skips applicationWillTerminate, which is
+    # where edits still waiting on the save debounce get written.
+    if pgrep -xq Relay; then
+        osascript -e 'tell application id "com.himanshu.relay" to quit' 2>/dev/null || true
+        for _ in {1..50}; do pgrep -xq Relay || break; sleep 0.1; done
+        if pgrep -xq Relay; then echo "✗ Relay is still running; quit it and re-run." >&2; exit 1; fi
+    fi
     rm -rf /Applications/Relay.app
     cp -R "$APP" /Applications/Relay.app
     # Leave exactly one copy on disk. Spotlight and Launchpad index the build

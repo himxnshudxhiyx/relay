@@ -51,7 +51,7 @@ Built with SwiftUI. No dependencies, no account, no sync. Everything stays on yo
 - Pre-request/test scripts and saved examples from Postman aren't run, but they're kept and written back on export.
 
 **Also**
-- Light, dark or system theme (⌃⌘L / ⌃⌘D). Poppins for the interface, monospace for code.
+- Carbon and lime, in light, dark or system theme (⌃⌘L / ⌃⌘D). Line numbers in every code view.
 - Response below or beside the request (⌘\\).
 - Drag requests and folders between folders and collections.
 - History of everything you send.
@@ -130,5 +130,3 @@ Sources/Relay/
   Views/     SwiftUI screens and the NSTextView-based code editor
 tools/MakeIcon.swift   renders the app icon
 ```
-
-Poppins is licensed under the SIL Open Font License; see `Resources/Fonts/OFL.txt`.

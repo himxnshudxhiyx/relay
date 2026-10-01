@@ -69,6 +69,8 @@ struct RelayCommands: Commands {
             Divider()
             Button("Go to URL") { ws.focusURL() }
                 .keyboardShortcut("l")
+            Button("Search Requests") { ws.focusSearch() }
+                .keyboardShortcut("k")
             Button("Duplicate Tab") { if let id = ws.selectedTabID { ws.duplicateTab(id) } }
                 .keyboardShortcut("d")
             Divider()

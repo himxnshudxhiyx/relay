@@ -97,6 +97,7 @@ final class Workspace {
     var toast: String?
     /// Bumped to move focus to the URL field.
     var urlFocusRequest = 0
+    var searchFocusRequest = 0
 
     @ObservationIgnored private var isLoading = true
     @ObservationIgnored private var workspaceSaveTask: Task<Void, Never>?
@@ -236,7 +237,7 @@ final class Workspace {
 
     // MARK: - Tabs
 
-    func newTab(_ request: APIRequest = APIRequest(), unsaved: Bool = false) {
+    func newTab(_ request: APIRequest = .blank, unsaved: Bool = false) {
         var original = request
         if unsaved {
             original = APIRequest()
@@ -342,6 +343,11 @@ final class Workspace {
 
     func focusURL() { urlFocusRequest += 1 }
 
+    func focusSearch() {
+        sidebarMode = .collections
+        searchFocusRequest += 1
+    }
+
     private func discardResponse(_ tabID: UUID) {
         responses[tabID] = nil
         editorSections[tabID] = nil
@@ -402,7 +408,7 @@ final class Workspace {
 
     func addRequest(collectionID: UUID, folderID: UUID? = nil) {
         guard let ci = collectionIndex(collectionID) else { return }
-        var request = APIRequest()
+        var request = APIRequest.blank
         request.name = "New Request"
         if let folderID {
             collections[ci].items.append(.request(request), toFolder: folderID)

@@ -25,19 +25,27 @@ extension Color {
 }
 
 enum Theme {
-    static let accent  = Color.dynamic(light: 0x5B4FE9, dark: 0x8F88FF)
-    static let canvas  = Color.dynamic(light: 0xFFFFFF, dark: 0x1D1D20)
-    static let panel   = Color.dynamic(light: 0xF9F9FB, dark: 0x19191C)
-    static let chrome  = Color.dynamic(light: 0xF2F2F5, dark: 0x141416)
-    static let field   = Color.dynamic(light: 0xF4F4F7, dark: 0x28282C)
-    static let line    = Color.dynamic(light: 0xE3E3E8, dark: 0x323238)
-    static let hover   = Color.primary.opacity(0.06)
+    // Carbon + lime. `accent` is for text and underlines (darkened in light
+    // mode to stay readable); `accentFill` is the bright lime behind dark text.
+    static let accent     = Color.dynamic(light: 0x4A6600, dark: 0xC6F432)
+    static let accentFill = Color.dynamic(light: 0xC6F432, dark: 0xC6F432)
+    static let onAccent   = Color.dynamic(light: 0x0B0B0B, dark: 0x0B0B0B)
+    static let accentSoft = Color.dynamic(light: 0xEDF8C6, dark: 0x1F2709)
 
-    static let green   = Color.dynamic(light: 0x15803D, dark: 0x4ADE80)
-    static let amber   = Color.dynamic(light: 0xB45309, dark: 0xFBBF24)
-    static let blue    = Color.dynamic(light: 0x1D4ED8, dark: 0x60A5FA)
-    static let purple  = Color.dynamic(light: 0x7E22CE, dark: 0xC084FC)
-    static let red     = Color.dynamic(light: 0xB91C1C, dark: 0xF87171)
+    static let canvas   = Color.dynamic(light: 0xFFFFFF, dark: 0x0B0B0B)
+    static let panel    = canvas
+    static let chrome   = Color.dynamic(light: 0xF5F5F4, dark: 0x070707)
+    static let field    = Color.dynamic(light: 0xFAFAFA, dark: 0x131313)
+    static let editor   = Color.dynamic(light: 0xFCFCFC, dark: 0x0F0F0F)
+    static let selected = Color.dynamic(light: 0xEBEBEA, dark: 0x1C1C1C)
+    static let line     = Color.dynamic(light: 0xE6E6E4, dark: 0x222222)
+    static let hover    = Color.primary.opacity(0.05)
+
+    static let green   = Color.dynamic(light: 0x0F8A55, dark: 0x5BD69B)
+    static let amber   = Color.dynamic(light: 0xA86F00, dark: 0xF5C451)
+    static let blue    = Color.dynamic(light: 0x1F6FD1, dark: 0x62B3F5)
+    static let purple  = Color.dynamic(light: 0x7B4FE0, dark: 0xB79CF7)
+    static let red     = Color.dynamic(light: 0xD33A2F, dark: 0xF2675F)
     static let teal    = Color.dynamic(light: 0x0F766E, dark: 0x2DD4BF)
     static let pink    = Color.dynamic(light: 0xBE185D, dark: 0xF472B6)
 

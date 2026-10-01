@@ -27,11 +27,11 @@ struct StatusPill: View {
     var body: some View {
         let phrase = HTTPStatus.phrase(code)
         Text(phrase.isEmpty ? "\(code)" : "\(code) \(phrase)")
-            .font(.app(12, .semibold))
+            .font(.code(12, .bold))
             .foregroundStyle(Theme.status(code))
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(Capsule().fill(Theme.status(code).opacity(0.14)))
+            .background(RoundedRectangle(cornerRadius: 5).fill(Theme.status(code).opacity(0.14)))
     }
 }
 
@@ -46,37 +46,43 @@ struct TabItem<ID: Hashable>: Identifiable {
 struct UnderlineTabs<ID: Hashable>: View {
     let items: [TabItem<ID>]
     @Binding var selection: ID
+    @Namespace private var underline
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 22) {
             ForEach(items) { item in
                 let selected = selection == item.id
                 Button {
                     selection = item.id
                 } label: {
-                    VStack(spacing: 7) {
+                    VStack(spacing: 8) {
                         HStack(spacing: 5) {
                             Text(item.title)
-                                .font(.app(12.5, selected ? .semibold : .medium))
+                                .font(.app(13, selected ? .semibold : .regular))
                                 .foregroundStyle(selected ? Color.primary : Color.secondary)
                                 .lineLimit(1)
                                 .fixedSize()
                             if let badge = item.badge {
                                 // Never wraps: a squeezed row would otherwise break "JSON" onto two lines.
+                                // Lime on the open tab, quiet grey on the rest.
                                 Text(badge)
                                     .lineLimit(1)
                                     .fixedSize()
-                                    .font(.app(10, .semibold))
-                                    .foregroundStyle(Theme.accent)
+                                    .font(.code(10, .semibold))
+                                    .foregroundStyle(selected ? Theme.accent : Color.secondary)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
-                                    .background(Capsule().fill(Theme.accent.opacity(0.13)))
+                                    .background(RoundedRectangle(cornerRadius: 4).fill(selected ? Theme.accentSoft : Theme.selected))
                             }
                         }
-                        Rectangle()
-                            .fill(selected ? Theme.accent : Color.clear)
-                            .frame(height: 2)
-                            .clipShape(Capsule())
+                        // One underline that slides between tabs.
+                        ZStack {
+                            Color.clear.frame(height: 2)
+                            if selected {
+                                Capsule().fill(Theme.accent).frame(height: 2)
+                                    .matchedGeometryEffect(id: "underline", in: underline)
+                            }
+                        }
                     }
                     .fixedSize(horizontal: true, vertical: false)
                     .contentShape(Rectangle())
@@ -85,6 +91,8 @@ struct UnderlineTabs<ID: Hashable>: View {
             }
         }
         .padding(.top, 9)
+        // Scoped here, so only the tabs animate, not the content they switch.
+        .animation(.snappy(duration: 0.22), value: selection)
     }
 }
 
@@ -121,10 +129,10 @@ struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.app(13, .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.onAccent)
             .padding(.horizontal, 14)
             .frame(height: height)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.accent))
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.accentFill))
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
             .contentShape(Rectangle())
     }
@@ -257,6 +265,10 @@ struct KeyHint: View {
 struct SearchField: View {
     let placeholder: String
     @Binding var text: String
+    var shortcut: String?
+    /// Bump to put the cursor in the field.
+    var focusRequest = 0
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 6) {
@@ -265,16 +277,67 @@ struct SearchField: View {
                 .foregroundStyle(.tertiary)
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.app(12))
+                .font(.app(12.5))
+                .focused($focused)
+                .onChange(of: focusRequest) { focused = true }
             if !text.isEmpty {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+            } else if let shortcut {
+                Text(shortcut)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.line))
             }
         }
-        .padding(.horizontal, 8)
-        .frame(height: 28)
-        .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.06)))
+        .padding(.horizontal, 9)
+        .frame(height: 30)
+        .background(RoundedRectangle(cornerRadius: 7).fill(Theme.field))
+        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.line))
+    }
+}
+
+/// A segmented control drawn to match the theme: a recessed track with the
+/// selected option raised.
+struct PillPicker<ID: Hashable>: View {
+    let options: [(id: ID, title: String)]
+    @Binding var selection: ID
+    var fontSize: CGFloat = 12
+    var height: CGFloat = 24
+    @Namespace private var pill
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(options, id: \.id) { option in
+                let selected = selection == option.id
+                Button { selection = option.id } label: {
+                    Text(option.title)
+                        .font(.app(fontSize, selected ? .medium : .regular))
+                        .foregroundStyle(selected ? Color.primary : Color.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.horizontal, 6)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: height)
+                        .background {
+                            if selected {
+                                RoundedRectangle(cornerRadius: height / 4).fill(Theme.selected)
+                                    .matchedGeometryEffect(id: "pill", in: pill)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.field))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.line))
+        .fixedSize(horizontal: false, vertical: true)
+        .animation(.snappy(duration: 0.22), value: selection)
     }
 }

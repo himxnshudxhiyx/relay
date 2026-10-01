@@ -245,7 +245,7 @@ private struct CompletionList: View {
         }
         .padding(.horizontal, 8)
         .frame(height: Self.rowHeight)
-        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Theme.accent.opacity(0.18) : .clear))
+        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Theme.accentSoft : .clear))
         .contentShape(Rectangle())
     }
 

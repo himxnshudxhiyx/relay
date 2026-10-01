@@ -329,6 +329,22 @@ enum HTTPStatus {
 }
 
 enum Format {
+    /// A file name for a saved response: the name you gave the request, or
+    /// for an unnamed one its URL path without the host and a leading version
+    /// (`https://x.com/v1/gst/gstr1/getSection` → `gst/gstr1/getSection`).
+    /// macOS shows a "/" in a file name as typed and stores it as ":".
+    static func responseFileName(name: String, url: String) -> String {
+        let generated = name == APIRequest().name || name == CurlParser.requestName(for: url)
+        guard generated else { return name }
+        var path = URLQuery.split(url.trimmingCharacters(in: .whitespaces)).base
+        if let scheme = path.range(of: "://") { path = String(path[scheme.upperBound...]) }
+        var segments = path.split(separator: "/").dropFirst()  // the host
+        if let first = segments.first, first.range(of: #"^v\d+$"#, options: .regularExpression) != nil {
+            segments = segments.dropFirst()
+        }
+        return segments.isEmpty ? "response" : segments.joined(separator: "/")
+    }
+
     static func duration(_ t: TimeInterval) -> String {
         t < 1 ? "\(Int((t * 1000).rounded())) ms" : String(format: "%.2f s", t)
     }

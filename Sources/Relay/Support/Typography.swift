@@ -1,27 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// Poppins, bundled with the app, for all interface text. Code — URLs, bodies,
-/// headers — stays monospaced, because JSON in a proportional face is
-/// unreadable.
-///
-/// Poppins ships as separate files per weight rather than a variable font, so
-/// SwiftUI's `.weight()` would do nothing — the weight has to pick the face.
-enum Typography {
-    static func face(for weight: Font.Weight) -> String {
-        switch weight {
-        case .black, .heavy, .bold: return "Poppins-Bold"
-        case .semibold:             return "Poppins-SemiBold"
-        case .medium:               return "Poppins-Medium"
-        default:                    return "Poppins-Regular"
-        }
-    }
-}
-
+/// The system face for interface text. Code — URLs, bodies, headers — stays
+/// monospaced, because JSON in a proportional face is unreadable.
 extension Font {
-    /// `fixedSize` so layouts tuned to exact point sizes stay put.
+    /// Exact point sizes, so layouts tuned to them stay put.
     static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom(Typography.face(for: weight), fixedSize: size)
+        .system(size: size, weight: weight)
     }
 
     static func code(_ size: CGFloat = 12, _ weight: Font.Weight = .regular) -> Font {
@@ -31,7 +16,14 @@ extension Font {
 
 extension NSFont {
     static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> NSFont {
-        NSFont(name: Typography.face(for: weight), size: size) ?? .systemFont(ofSize: size)
+        let w: NSFont.Weight
+        switch weight {
+        case .black, .heavy, .bold: w = .bold
+        case .semibold:             w = .semibold
+        case .medium:               w = .medium
+        default:                    w = .regular
+        }
+        return .systemFont(ofSize: size, weight: w)
     }
 
     static func code(_ size: CGFloat = 12) -> NSFont {

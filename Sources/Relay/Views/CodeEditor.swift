@@ -17,6 +17,8 @@ struct CodeEditor: NSViewRepresentable {
     var highlightVariables: Bool
     var variableColor: ((String) -> NSColor)?
     var fontSize: CGFloat
+    /// Read-only JSON gets a gutter of fold chevrons.
+    var folds = false
 
     init(text: Binding<String>, language: Language, isEditable: Bool = true, wraps: Bool = true,
          highlightVariables: Bool = true, variableColor: ((String) -> NSColor)? = nil, fontSize: CGFloat = 12) {
@@ -31,8 +33,9 @@ struct CodeEditor: NSViewRepresentable {
     }
 
     /// Read-only, for responses.
-    init(content: String, language: Language, wraps: Bool = true, fontSize: CGFloat = 12) {
+    init(content: String, language: Language, wraps: Bool = true, folds: Bool = false, fontSize: CGFloat = 12) {
         self.text = nil
+        self.folds = folds
         self.content = content
         self.language = language
         self.isEditable = false
@@ -49,7 +52,7 @@ struct CodeEditor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let storage = NSTextStorage()
         let layout = NSLayoutManager()
-        // Lays out only what's on screen, which is what keeps a 5 MB response scrollable.
+        // Set per text in `setText`: see `contiguousLimit`.
         layout.allowsNonContiguousLayout = true
         storage.addLayoutManager(layout)
         let container = NSTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
@@ -90,10 +93,15 @@ struct CodeEditor: NSViewRepresentable {
         let coordinator = context.coordinator
         coordinator.textView = textView
         coordinator.scrollView = scroll
+        // Line numbers (and fold chevrons) live in a vertical ruler.
+        textView.usesRuler = false
+        scroll.verticalRulerView = Gutter(scrollView: scroll, coordinator: coordinator)
+        scroll.hasVerticalRuler = true
+        scroll.rulersVisible = true
         textView.delegate = coordinator
         coordinator.applyFont(fontSize)
         coordinator.applyWrapping(wraps)
-        coordinator.setText(currentText, undoable: false)
+        coordinator.setText(coordinator.prepare(currentText), undoable: false)
         coordinator.highlightNow()
         return scroll
     }
@@ -121,6 +129,8 @@ struct CodeEditor: NSViewRepresentable {
         private var appliedFontSize: CGFloat?
         private var appliedLanguage: Language?
         private var appliedHighlightVariables: Bool?
+        private var appliedFolds: Bool?
+        fileprivate private(set) var folding: JSONFolding?
 
         init(_ parent: CodeEditor) {
             self.parent = parent
@@ -130,6 +140,7 @@ struct CodeEditor: NSViewRepresentable {
             guard !isUpdating, let textView else { return }
             highlightToken += 1
             parent.text?.wrappedValue = textView.string
+            gutter?.textChanged()
             scheduleHighlight()
             if completesVariables { VariableCompletion.shared.update(textView) }
         }
@@ -166,8 +177,8 @@ struct CodeEditor: NSViewRepresentable {
             }
 
             let text = parent.currentText
-            if textView.string != text {
-                setText(text, undoable: editable)
+            if (folding?.source ?? textView.string) != text || appliedFolds != parent.folds {
+                setText(prepare(text), undoable: editable)
                 if parent.text == nil {
                     textView.setSelectedRange(NSRange(location: 0, length: 0))
                     textView.scroll(.zero)
@@ -184,11 +195,40 @@ struct CodeEditor: NSViewRepresentable {
             }
         }
 
+        private var gutter: Gutter? { scrollView?.verticalRulerView as? Gutter }
+
+        /// The text to show for `text`: as is, or with its folds applied.
+        func prepare(_ text: String) -> String {
+            appliedFolds = parent.folds
+            folding = parent.folds ? JSONFolding(text) : nil
+            return folding?.display ?? text
+        }
+
+        fileprivate func toggleFold(_ region: Int) {
+            guard var folding, let scrollView else { return }
+            folding.toggle(region)
+            self.folding = folding
+            // Only text below the clicked line changes, so the scroll position holds.
+            let origin = scrollView.contentView.bounds.origin
+            setText(folding.display, undoable: false)
+            highlightNow()
+            scrollView.contentView.scroll(to: origin)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
+
+        /// Expands the fold whose `{…}` was clicked. False when the click wasn't on one.
+        fileprivate func expandFold(at offset: Int) -> Bool {
+            guard let region = folding?.placeholder(at: offset) else { return false }
+            toggleFold(region)
+            return true
+        }
+
         func applyFont(_ size: CGFloat) {
             guard let textView else { return }
             appliedFontSize = size
             let font = NSFont.code(size)
             textView.font = font
+            gutter?.textChanged()
             textView.typingAttributes = [.font: font, .foregroundColor: NSColor.textColor]
         }
 
@@ -227,6 +267,8 @@ struct CodeEditor: NSViewRepresentable {
             ])
             let full = NSRange(location: 0, length: storage.length)
             let selection = textView.selectedRange()
+            let partial = text.utf16.count > Coordinator.contiguousLimit
+            textView.layoutManager?.allowsNonContiguousLayout = partial
             if undoable {
                 guard textView.shouldChangeText(in: full, replacementString: text) else { return }
                 storage.replaceCharacters(in: full, with: attributed)
@@ -237,7 +279,18 @@ struct CodeEditor: NSViewRepresentable {
             let length = storage.length
             let location = min(selection.location, length)
             textView.setSelectedRange(NSRange(location: location, length: min(selection.length, length - location)))
+            // The full height up front, so scrolling never meets an estimate.
+            if !partial, let container = textView.textContainer { textView.layoutManager?.ensureLayout(for: container) }
+            gutter?.textChanged()
         }
+
+        /// Laying out only what's on screen keeps a multi-megabyte response
+        /// responsive, but its height is then an estimate corrected as you
+        /// scroll, which makes the content and scroller jump. Below this size
+        /// a full layout is quick, so scrolling stays exact and smooth.
+        // ponytail: bodies above this still scroll with estimated height;
+        // lay them out on a background thread if that becomes a complaint.
+        static let contiguousLimit = 1_000_000
 
         func scheduleHighlight() {
             pendingHighlight?.cancel()
@@ -345,14 +398,16 @@ private enum Highlighter {
 }
 
 private enum CodePalette {
-    static let key = dynamic(0x7C3AED, 0xC4B5FD)
-    static let string = dynamic(0x15803D, 0x86EFAC)
-    static let number = dynamic(0xC2410C, 0xFDBA74)
-    static let literal = dynamic(0x2563EB, 0x93C5FD)
-    static let tag = dynamic(0x2563EB, 0x93C5FD)
-    static let attribute = dynamic(0x7C3AED, 0xC4B5FD)
-    static let value = dynamic(0x15803D, 0x86EFAC)
-    static let punctuation = NSColor.secondaryLabelColor
+    static let key = dynamic(0x4A6600, 0xE2F59A)
+    static let string = dynamic(0x4F7A00, 0xB5E35A)
+    static let number = dynamic(0xB06A00, 0xF5C451)
+    static let literal = dynamic(0x1F6FD1, 0x62B3F5)
+    static let tag = dynamic(0x1F6FD1, 0x62B3F5)
+    static let attribute = dynamic(0x4A6600, 0xE2F59A)
+    static let value = dynamic(0x4F7A00, 0xB5E35A)
+    static let punctuation = dynamic(0x858585, 0x6E6E6E)
+    static let lineNumber = dynamic(0xBDBDBD, 0x3F3F3F)
+    static let foldedChevron = dynamic(0x4A6600, 0xC6F432)
     static let comment = NSColor.tertiaryLabelColor
 
     static func color(for kind: Highlighter.Kind) -> NSColor {
@@ -380,11 +435,158 @@ private enum CodePalette {
     }
 }
 
+// MARK: - Gutter
+
+/// Line numbers, plus a chevron beside each line that opens a foldable block.
+/// Folded views keep the original numbering, so a fold shows as a jump.
+private final class Gutter: NSRulerView {
+    private weak var coordinator: CodeEditor.Coordinator?
+    /// UTF-16 offset of each displayed line's start; rebuilt lazily after a change.
+    private var lineStarts: [Int]?
+    private let foldWidth: CGFloat = 14
+
+    init(scrollView: NSScrollView, coordinator: CodeEditor.Coordinator) {
+        self.coordinator = coordinator
+        super.init(scrollView: scrollView, orientation: .verticalRuler)
+        clientView = scrollView.documentView
+        ruleThickness = 32
+        // Rulers don't redraw on their own when the text scrolls or re-wraps.
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        for (name, object) in [(NSView.boundsDidChangeNotification, scrollView.contentView as NSView),
+                               (NSView.frameDidChangeNotification, scrollView.documentView)] {
+            NotificationCenter.default.addObserver(self, selector: #selector(redraw), name: name, object: object)
+        }
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override var isFlipped: Bool { true }
+
+    @objc private func redraw() { needsDisplay = true }
+
+    func textChanged() {
+        lineStarts = nil
+        needsDisplay = true
+    }
+
+    /// Built once per font size, not on every scroll frame.
+    private var cached: (size: CGFloat, font: NSFont, attributes: [NSAttributedString.Key: Any])?
+    private var font: NSFont { style.font }
+    private var style: (font: NSFont, attributes: [NSAttributedString.Key: Any]) {
+        let size = max((coordinator?.parent.fontSize ?? 12) - 1, 9)
+        if let cached, cached.size == size { return (cached.font, cached.attributes) }
+        let font = NSFont.code(size)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: CodePalette.lineNumber]
+        cached = (size, font, attributes)
+        return (font, attributes)
+    }
+
+    private static let chevrons: [Bool: NSImage] = {
+        func image(_ name: String, _ color: NSColor) -> NSImage {
+            let config = NSImage.SymbolConfiguration(pointSize: 8, weight: .bold).applying(.init(paletteColors: [color]))
+            return NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) ?? NSImage()
+        }
+        return [true: image("chevron.right", CodePalette.foldedChevron), false: image("chevron.down", .secondaryLabelColor)]
+    }()
+    private var foldColumn: CGFloat { coordinator?.folding == nil ? 0 : foldWidth }
+
+    private func starts() -> [Int] {
+        if let lineStarts { return lineStarts }
+        var result = [0]
+        for (i, c) in (coordinator?.textView?.string ?? "").utf16.enumerated() where c == 0x0A { result.append(i + 1) }
+        lineStarts = result
+        // Wide enough for the last line number, at least two digits.
+        let total = result.count + (coordinator?.folding?.hiddenLines(before: .max) ?? 0)
+        let digit = ("8" as NSString).size(withAttributes: [.font: font]).width
+        let width = ceil(CGFloat(max(String(total).count, 2)) * digit + 16 + foldColumn)
+        if width != ruleThickness { ruleThickness = width }
+        return result
+    }
+
+    private func line(at offset: Int, in starts: [Int]) -> Int {
+        var low = 0, high = starts.count
+        while low < high {
+            let mid = (low + high) / 2
+            if starts[mid] <= offset { low = mid + 1 } else { high = mid }
+        }
+        return low - 1
+    }
+
+    /// No ruler background or baseline, just numbers and chevrons.
+    override func draw(_ dirtyRect: NSRect) { drawHashMarksAndLabels(in: dirtyRect) }
+
+    override func drawHashMarksAndLabels(in rect: NSRect) {
+        guard let coordinator, let textView = coordinator.textView,
+              let layout = textView.layoutManager, let container = textView.textContainer else { return }
+        let starts = starts()
+        let folding = coordinator.folding
+        let attributes = style.attributes
+        let right = ruleThickness - foldColumn - 8
+        let origin = textView.textContainerOrigin
+
+        func draw(_ number: Int, in fragment: NSRect) {
+            let label = "\(number)" as NSString
+            let size = label.size(withAttributes: attributes)
+            let top = convert(NSPoint(x: 0, y: fragment.minY + origin.y), from: textView).y
+            label.draw(at: NSPoint(x: right - size.width, y: top + (fragment.height - size.height) / 2), withAttributes: attributes)
+        }
+
+        let glyphs = layout.glyphRange(forBoundingRect: textView.visibleRect, in: container)
+        layout.enumerateLineFragments(forGlyphRange: glyphs) { fragment, _, _, range, _ in
+            let char = layout.characterIndexForGlyph(at: range.location)
+            let index = self.line(at: char, in: starts)
+            // A wrapped line is numbered once, on its first fragment.
+            guard index >= 0, starts[index] == char else { return }
+            draw(index + 1 + (folding?.hiddenLines(before: char) ?? 0), in: fragment)
+
+            guard let region = folding?.markers[char], let folded = folding?.isFolded(region) else { return }
+            guard let image = Gutter.chevrons[folded] else { return }
+            let mid = self.convert(NSPoint(x: 0, y: fragment.midY + origin.y), from: textView).y
+            let size = image.size
+            image.draw(in: NSRect(x: self.ruleThickness - self.foldWidth + (self.foldWidth - size.width) / 2 - 2,
+                                  y: mid - size.height / 2, width: size.width, height: size.height),
+                       from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        }
+        // The empty line after a trailing newline (or in an empty editor).
+        if layout.extraLineFragmentTextContainer != nil, starts.count > 1 || textView.string.isEmpty {
+            draw(starts.count + (folding?.hiddenLines(before: .max) ?? 0), in: layout.extraLineFragmentRect)
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let coordinator, let folding = coordinator.folding, let textView = coordinator.textView,
+              let layout = textView.layoutManager, let container = textView.textContainer else { return }
+        let y = textView.convert(event.locationInWindow, from: nil).y - textView.textContainerOrigin.y
+        let glyph = layout.glyphIndex(for: NSPoint(x: 0, y: y), in: container)
+        var range = NSRange()
+        let fragment = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &range)
+        guard fragment.minY <= y, y < fragment.maxY,
+              let region = folding.markers[layout.characterIndexForGlyph(at: range.location)] else { return }
+        coordinator.toggleFold(region)
+    }
+}
+
 // MARK: - Text view
 
 /// Editing behaviour for code: soft tabs, carried indentation, and ⌘F/⌘G
 /// that work even when the app's menu doesn't route them to the find bar.
 private final class CodeTextView: NSTextView {
+    /// A click on a folded `{…}` expands it, as in Postman.
+    override func mouseDown(with event: NSEvent) {
+        if !isEditable, event.clickCount == 1, let layout = layoutManager, let container = textContainer,
+           let coordinator = delegate as? CodeEditor.Coordinator, coordinator.folding != nil {
+            var point = convert(event.locationInWindow, from: nil)
+            point.x -= textContainerOrigin.x
+            point.y -= textContainerOrigin.y
+            let glyph = layout.glyphIndex(for: point, in: container)
+            if layout.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container).contains(point),
+               coordinator.expandFold(at: layout.characterIndexForGlyph(at: glyph)) {
+                return
+            }
+        }
+        super.mouseDown(with: event)
+    }
+
     override func insertTab(_ sender: Any?) {
         guard isEditable else { return super.insertTab(sender) }
         insertText("  ", replacementRange: selectedRange())

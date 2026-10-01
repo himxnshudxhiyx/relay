@@ -20,7 +20,10 @@ struct RootView: View {
                     WelcomeView()
                 }
             }
-            .background(Theme.canvas)
+            // Canvas runs up under a see-through toolbar, so the top bar spans
+            // the content column only and the sidebar keeps its full height.
+            .background(Theme.canvas.ignoresSafeArea())
+            .toolbarBackground(.hidden, for: .windowToolbar)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     VariablesButton()
@@ -278,7 +281,7 @@ private struct WelcomeAction: View {
                 KeyHint(keys: keys)
             }
             .frame(width: 160, height: 124)
-            .background(RoundedRectangle(cornerRadius: 12).fill(hovering ? Theme.accent.opacity(0.06) : Theme.panel))
+            .background(RoundedRectangle(cornerRadius: 12).fill(hovering ? Theme.accentSoft : Theme.field))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(hovering ? Theme.accent.opacity(0.4) : Theme.line))
             .contentShape(Rectangle())
         }
@@ -293,14 +296,13 @@ struct AppGlyph: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
-            .fill(LinearGradient(colors: [Color(nsColor: NSColor(hex: 0x7C6CFF)), Color(nsColor: NSColor(hex: 0x4338CA))],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+            .fill(Theme.accentFill)
             .frame(width: size, height: size)
             .overlay(
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.onAccent)
             )
-            .shadow(color: Color(nsColor: NSColor(hex: 0x4338CA)).opacity(0.3), radius: 10, y: 5)
+            .shadow(color: .black.opacity(0.25), radius: 10, y: 5)
     }
 }
