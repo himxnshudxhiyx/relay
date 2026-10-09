@@ -222,4 +222,17 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(Format.responseFileName(name: "GST Summary", url: url), "GST Summary", "a chosen name wins")
         XCTAssertEqual(Format.responseFileName(name: "Untitled Request", url: "https://x.test/"), "response")
     }
+
+    func testFindsBase64FilesInJSON() {
+        let pdf = Data("%PDF-1.4\n".utf8 + Array(repeating: 0x20, count: 80)).base64EncodedString()
+        let png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] + Array(repeating: 0, count: 80)).base64EncodedString()
+        let notAFile = String(repeating: "QUJD", count: 40)  // "ABC…": valid base64, no known header
+        let json = #"{"data":{"fileName":"GSTR1-B2B","pdf":"\#(pdf)","note":"\#(notAFile)"},"images":["data:image/png;base64,\#(png)"]}"#
+        let files = EmbeddedFile.find(inJSON: Data(json.utf8))
+        XCTAssertEqual(files.map(\.path), ["data.pdf", "images[0]"])
+        XCTAssertEqual(files.map(\.kind), [.pdf, .png])
+        XCTAssertEqual(files[0].suggestedName, "GSTR1-B2B", "a sibling fileName names it")
+        XCTAssertTrue(files[0].data.starts(with: Data("%PDF".utf8)))
+        XCTAssertTrue(EmbeddedFile.find(inJSON: Data(#"{"pdf":"short"}"#.utf8)).isEmpty)
+    }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import PDFKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -71,6 +72,19 @@ private struct ResponseContent: View {
 
     @AppStorage("wrapResponse") private var wrap = true
     @AppStorage("prettyResponse") private var pretty = true
+    @State private var previewing = false
+
+    private enum Mode { case pretty, raw, preview }
+
+    private var mode: Binding<Mode> {
+        Binding(
+            get: { previewing && !result.files.isEmpty ? .preview : (pretty ? .pretty : .raw) },
+            set: { mode in
+                previewing = mode == .preview
+                if mode != .preview { pretty = mode == .pretty }
+            }
+        )
+    }
 
     var body: some View {
         let section = Binding(
@@ -140,26 +154,34 @@ private struct ResponseContent: View {
         case .json, .xml, .html, .text:
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    if result.pretty != nil {
-                        PillPicker(options: [(true, "Pretty"), (false, "Raw")], selection: $pretty)
+                    let modes = (result.pretty != nil ? [(Mode.pretty, "Pretty"), (.raw, "Raw")] : [])
+                        + (result.files.isEmpty ? [] : [(Mode.preview, "Preview")])
+                    if modes.count > 1 {
+                        PillPicker(options: modes, selection: mode)
                             .fixedSize()
                     }
                     Text(kindLabel)
                         .font(.app(11))
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("⌘F to search")
-                        .font(.app(10.5))
-                        .foregroundStyle(.tertiary)
-                    IconButton(symbol: wrap ? "text.alignleft" : "arrow.left.and.right", help: wrap ? "Turn off line wrap" : "Wrap long lines") {
-                        wrap.toggle()
+                    if mode.wrappedValue != .preview {
+                        Text("⌘F to search")
+                            .font(.app(10.5))
+                            .foregroundStyle(.tertiary)
+                        IconButton(symbol: wrap ? "text.alignleft" : "arrow.left.and.right", help: wrap ? "Turn off line wrap" : "Wrap long lines") {
+                            wrap.toggle()
+                        }
+                        IconButton(symbol: "square.and.arrow.down", help: "Save response to a file") { saveBody() }
                     }
-                    IconButton(symbol: "square.and.arrow.down", help: "Save response to a file") { saveBody() }
                 }
                 .padding(.horizontal, 20)
                 .frame(height: 42)
-                CodeEditor(content: pretty ? (result.pretty ?? result.text) : result.text,
-                           language: language, wraps: wrap, folds: language == .json)
+                if mode.wrappedValue == .preview {
+                    FilePreview(files: result.files, fallbackName: fileName)
+                } else {
+                    CodeEditor(content: pretty ? (result.pretty ?? result.text) : result.text,
+                               language: language, wraps: wrap, folds: language == .json)
+                }
             }
         }
     }
@@ -189,11 +211,15 @@ private struct ResponseContent: View {
         }
     }
 
+    private var fileName: String {
+        let request = ws.tab(tabID)?.draft ?? APIRequest()
+        return Format.responseFileName(name: request.name, url: request.url)
+    }
+
     private func saveBody() {
         let mime = result.contentType.components(separatedBy: ";").first?.trimmingCharacters(in: .whitespaces) ?? ""
         let ext = UTType(mimeType: mime)?.preferredFilenameExtension ?? "txt"
-        let request = ws.tab(tabID)?.draft ?? APIRequest()
-        let name = Format.responseFileName(name: request.name, url: request.url)
+        let name = fileName
         // Saved as shown: formatted while Pretty is on, the server's bytes on Raw.
         let data = pretty ? result.pretty.map { Data($0.utf8) } ?? result.body : result.body
         FilePanels.save(data, suggestedName: "\(name).\(ext)")
@@ -328,4 +354,91 @@ private struct SentRequestView: View {
             .font(.app(10.5, .semibold))
             .foregroundStyle(.tertiary)
     }
+}
+
+// MARK: - Embedded file preview
+
+/// Base64 files found in a JSON response, decoded and shown: PDFs page by
+/// page, images as images.
+private struct FilePreview: View {
+    let files: [EmbeddedFile]
+    /// Used when the response doesn't name the file.
+    let fallbackName: String
+    @State private var index = 0
+
+    var body: some View {
+        let file = files[min(index, files.count - 1)]
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                if files.count > 1 {
+                    Picker("File", selection: $index) {
+                        ForEach(files.indices, id: \.self) { Text(files[$0].path).tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } else {
+                    Text(file.path).font(.code(12)).foregroundStyle(.secondary)
+                }
+                Text("\(file.kind.rawValue.uppercased()) · \(Format.bytes(file.data.count))")
+                    .font(.app(11.5))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Button("Open") { open(file) }
+                    .buttonStyle(SecondaryButtonStyle(height: 26))
+                    .help("Open in the default app, such as Preview")
+                Button("Save…") { FilePanels.save(file.data, suggestedName: "\(name(of: file)).\(file.fileExtension)") }
+                    .buttonStyle(SecondaryButtonStyle(height: 26))
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+            Divider()
+            Group {
+                if file.isImage, let image = NSImage(data: file.data) {
+                    ScrollView([.horizontal, .vertical]) {
+                        Image(nsImage: image).padding(16)
+                    }
+                } else if file.kind == .pdf {
+                    PDFPreview(data: file.data)
+                } else {
+                    EmptyState(symbol: "doc", title: "Can't show this file",
+                               message: "It looks like a \(file.kind.rawValue.uppercased()) but didn't decode. Save it to inspect it.")
+                }
+            }
+            // A different file gets a fresh view rather than reusing the old document.
+            .id("\(index)#\(file.data.count)")
+        }
+    }
+
+    private func name(of file: EmbeddedFile) -> String {
+        let name = file.suggestedName ?? fallbackName
+        // Drop an extension the response already put on the name.
+        return name.lowercased().hasSuffix(".\(file.fileExtension)") ? String(name.dropLast(file.fileExtension.count + 1)) : name
+    }
+
+    private func open(_ file: EmbeddedFile) {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Relay", isDirectory: true)
+        let url = folder.appendingPathComponent("\(name(of: file).replacingOccurrences(of: "/", with: "-")).\(file.fileExtension)")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try file.data.write(to: url, options: .atomic)
+            NSWorkspace.shared.open(url)
+        } catch {
+            Alerts.inform("Couldn't open the file", message: error.localizedDescription)
+        }
+    }
+}
+
+private struct PDFPreview: NSViewRepresentable {
+    let data: Data
+
+    func makeNSView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.backgroundColor = .clear
+        view.document = PDFDocument(data: data)
+        return view
+    }
+
+    func updateNSView(_ view: PDFView, context: Context) {}
 }

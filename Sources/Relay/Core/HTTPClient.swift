@@ -42,6 +42,8 @@ struct HTTPResult {
     var pretty: String?
     /// The cURL for exactly what was sent, even if the request is edited afterwards.
     var curl = ""
+    /// Base64 files inside a JSON body (a PDF, an image), for the Preview view.
+    var files: [EmbeddedFile] = []
 
     var statusText: String { HTTPStatus.phrase(status) }
     var contentType: String { header("Content-Type") ?? "" }
@@ -111,10 +113,12 @@ enum HTTPClient {
         return await Task.detached(priority: .userInitiated) {
             let contentType = headers.first { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value ?? ""
             let (kind, text, pretty) = interpret(data, contentType: contentType)
-            return HTTPResult(status: status, headers: headers, body: data, duration: duration, ttfb: ttfb,
-                              redirects: redirects, finalURL: finalURL,
-                              sentMethod: method, sentURL: sentURL, sentHeaders: sentHeaders, sentBody: sentBody,
-                              kind: kind, text: text, pretty: pretty)
+            var result = HTTPResult(status: status, headers: headers, body: data, duration: duration, ttfb: ttfb,
+                                    redirects: redirects, finalURL: finalURL,
+                                    sentMethod: method, sentURL: sentURL, sentHeaders: sentHeaders, sentBody: sentBody,
+                                    kind: kind, text: text, pretty: pretty)
+            if kind == .json { result.files = EmbeddedFile.find(inJSON: data) }
+            return result
         }.value
     }
 
