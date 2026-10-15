@@ -1,0 +1,287 @@
+<!-- Carbon + lime, matching the Mac app's Theme.swift token for token. -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <!-- `Accent` is for text and underlines (darkened to stay readable); `AccentFill` sits behind dark text. -->
+          <SolidColorBrush x:Key="Accent" Color="#4A6600" />
+          <SolidColorBrush x:Key="AccentSoft" Color="#EDF8C6" />
+          <SolidColorBrush x:Key="Canvas" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Chrome" Color="#F5F5F4" />
+          <SolidColorBrush x:Key="Field" Color="#FAFAFA" />
+          <SolidColorBrush x:Key="Editor" Color="#FCFCFC" />
+          <SolidColorBrush x:Key="Selected" Color="#EBEBEA" />
+          <SolidColorBrush x:Key="Line" Color="#E6E6E4" />
+          <SolidColorBrush x:Key="Hover" Color="#0D000000" />
+          <SolidColorBrush x:Key="Text" Color="#111111" />
+          <SolidColorBrush x:Key="TextSecondary" Color="#5C5C5C" />
+          <SolidColorBrush x:Key="TextTertiary" Color="#858585" />
+          <SolidColorBrush x:Key="Green" Color="#0F8A55" />
+          <SolidColorBrush x:Key="Amber" Color="#A86F00" />
+          <SolidColorBrush x:Key="Blue" Color="#1F6FD1" />
+          <SolidColorBrush x:Key="Purple" Color="#7B4FE0" />
+          <SolidColorBrush x:Key="Red" Color="#D33A2F" />
+          <SolidColorBrush x:Key="Teal" Color="#0F766E" />
+          <SolidColorBrush x:Key="Pink" Color="#BE185D" />
+          <SolidColorBrush x:Key="Shadow" Color="#22000000" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Accent" Color="#C6F432" />
+          <SolidColorBrush x:Key="AccentSoft" Color="#1F2709" />
+          <SolidColorBrush x:Key="Canvas" Color="#0B0B0B" />
+          <SolidColorBrush x:Key="Chrome" Color="#070707" />
+          <SolidColorBrush x:Key="Field" Color="#131313" />
+          <SolidColorBrush x:Key="Editor" Color="#0F0F0F" />
+          <SolidColorBrush x:Key="Selected" Color="#1C1C1C" />
+          <SolidColorBrush x:Key="Line" Color="#222222" />
+          <SolidColorBrush x:Key="Hover" Color="#0DFFFFFF" />
+          <SolidColorBrush x:Key="Text" Color="#EDEDED" />
+          <SolidColorBrush x:Key="TextSecondary" Color="#9C9C9C" />
+          <SolidColorBrush x:Key="TextTertiary" Color="#6E6E6E" />
+          <SolidColorBrush x:Key="Green" Color="#5BD69B" />
+          <SolidColorBrush x:Key="Amber" Color="#F5C451" />
+          <SolidColorBrush x:Key="Blue" Color="#62B3F5" />
+          <SolidColorBrush x:Key="Purple" Color="#B79CF7" />
+          <SolidColorBrush x:Key="Red" Color="#F2675F" />
+          <SolidColorBrush x:Key="Teal" Color="#2DD4BF" />
+          <SolidColorBrush x:Key="Pink" Color="#F472B6" />
+          <SolidColorBrush x:Key="Shadow" Color="#66000000" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <SolidColorBrush x:Key="AccentFill" Color="#C6F432" />
+      <SolidColorBrush x:Key="OnAccent" Color="#0B0B0B" />
+      <!-- Fluent's own accent, so checkboxes, focus rings and selection pick up the lime. -->
+      <Color x:Key="SystemAccentColor">#9BC21F</Color>
+      <Color x:Key="SystemAccentColorLight1">#B3DB2A</Color>
+      <Color x:Key="SystemAccentColorLight2">#C6F432</Color>
+      <Color x:Key="SystemAccentColorLight3">#D8FB6A</Color>
+      <Color x:Key="SystemAccentColorDark1">#7FA314</Color>
+      <Color x:Key="SystemAccentColorDark2">#5F7D0B</Color>
+      <Color x:Key="SystemAccentColorDark3">#4A6600</Color>
+      <FontFamily x:Key="AppFont">Segoe UI Variable Text, Segoe UI, Inter, $Default</FontFamily>
+      <FontFamily x:Key="CodeFont">Cascadia Mono, Cascadia Code, Consolas, Menlo, monospace</FontFamily>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <!-- Base text -->
+  <Style Selector="Window">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="Background" Value="{DynamicResource Canvas}" />
+  </Style>
+  <Style Selector="TextBlock.secondary"><Setter Property="Foreground" Value="{DynamicResource TextSecondary}" /></Style>
+  <Style Selector="TextBlock.tertiary"><Setter Property="Foreground" Value="{DynamicResource TextTertiary}" /></Style>
+  <Style Selector="TextBlock.accent"><Setter Property="Foreground" Value="{DynamicResource Accent}" /></Style>
+  <Style Selector="TextBlock.code"><Setter Property="FontFamily" Value="{StaticResource CodeFont}" /></Style>
+  <Style Selector="SelectableTextBlock.code"><Setter Property="FontFamily" Value="{StaticResource CodeFont}" /></Style>
+  <Style Selector="TextBox.code"><Setter Property="FontFamily" Value="{StaticResource CodeFont}" /></Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiary}" />
+  </Style>
+  <Style Selector="Border.hairline"><Setter Property="Background" Value="{DynamicResource Line}" /></Style>
+
+  <!-- Buttons. Fluent paints state backgrounds on the template's presenter, so states are restyled there. -->
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{StaticResource AccentFill}" />
+    <Setter Property="Foreground" Value="{StaticResource OnAccent}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Padding" Value="14,0" />
+    <Setter Property="Height" Value="32" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#D3F85A" />
+    <Setter Property="Foreground" Value="{StaticResource OnAccent}" />
+  </Style>
+  <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#B3DB2A" />
+    <Setter Property="Foreground" Value="{StaticResource OnAccent}" />
+  </Style>
+  <Style Selector="Button.secondary">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="Height" Value="32" />
+  </Style>
+  <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Selected}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+  </Style>
+  <Style Selector="Button.ghost, Button.link, Button.chip, Button.tab, Button.pill, Button.icon">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.icon:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Hover}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+  </Style>
+  <Style Selector="Button.icon">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <Style Selector="Button.link">
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+  </Style>
+  <!-- Body-mode chips: lime-tinted when selected. -->
+  <Style Selector="Button.chip">
+    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="FontSize" Value="12.5" />
+  </Style>
+  <Style Selector="Button.chip.selected">
+    <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.chip.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+  </Style>
+  <!-- Underline tabs (Params / Headers / Body / Auth). The underline is a child Border named Underline. -->
+  <Style Selector="Button.tab">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="Button.tab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+  </Style>
+  <Style Selector="Button.tab.selected">
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.tab Border#Underline">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Height" Value="2" />
+    <Setter Property="CornerRadius" Value="1" />
+    <Setter Property="Transitions">
+      <Transitions><BrushTransition Property="Background" Duration="0:0:0.18" /></Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.tab.selected Border#Underline"><Setter Property="Background" Value="{DynamicResource Accent}" /></Style>
+  <!-- Segmented pills (Pretty / Raw / Preview, sidebar modes). -->
+  <Style Selector="Border.pills">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
+  <Style Selector="Button.pill">
+    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="Transitions">
+      <Transitions><BrushTransition Property="Background" Duration="0:0:0.15" /></Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.pill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+  </Style>
+  <Style Selector="Button.pill.selected">
+    <Setter Property="Background" Value="{DynamicResource Selected}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <Style Selector="Button.pill.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Selected}" />
+  </Style>
+
+  <!-- Text fields -->
+  <Style Selector="TextBox">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="SelectionBrush" Value="#557FA314" />
+    <Setter Property="CaretBrush" Value="{DynamicResource Text}" />
+  </Style>
+  <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+  </Style>
+  <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBox:pointerover, TextBox:focus">
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+  </Style>
+  <!-- Bare text boxes inside our own chrome (URL bar, tables, title). -->
+  <Style Selector="TextBox.bare">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+  <Style Selector="TextBox.bare:pointerover /template/ Border#PART_BorderElement, TextBox.bare:focus /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <!-- Dropdowns and number fields share the text fields' chrome. -->
+  <Style Selector="ComboBox, NumericUpDown">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="MinHeight" Value="30" />
+  </Style>
+  <Style Selector="ComboBox:pointerover /template/ Border#Background">
+    <Setter Property="Background" Value="{DynamicResource Selected}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+  </Style>
+  <Style Selector="ComboBox /template/ Border#PopupBorder">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+  </Style>
+
+  <!-- Menus and popups in the theme's surfaces -->
+  <Style Selector="FlyoutPresenter, MenuFlyoutPresenter, ContextMenu">
+    <Setter Property="Background" Value="{DynamicResource Field}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+    <Setter Property="CornerRadius" Value="10" />
+  </Style>
+  <Style Selector="CheckBox">
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+  <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
+    <Setter Property="Fill" Value="{StaticResource OnAccent}" />
+  </Style>
+  <Style Selector="ScrollViewer">
+    <Setter Property="AllowAutoHide" Value="True" />
+  </Style>
+</Styles>

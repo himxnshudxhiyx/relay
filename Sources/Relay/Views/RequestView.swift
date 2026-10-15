@@ -7,6 +7,8 @@ struct RequestView: View {
     @AppStorage("layout") private var layout = PaneLayout.stacked
     /// The editor height you dragged to; 0 means the default.
     @AppStorage("editorHeight") private var editorHeight = 0.0
+    /// The editor's share of the width beside the response; 0 means half.
+    @AppStorage("editorWidth") private var editorWidth = 0.0
     @State private var dragStart: CGFloat?
 
     var body: some View {
@@ -19,11 +21,29 @@ struct RequestView: View {
                 VariableHints(tab: tab)
                 Divider()
                 if layout == .sideBySide {
-                    HSplitView {
-                        RequestEditor(tab: tab)
-                            .frame(minWidth: 340, maxWidth: .infinity, maxHeight: .infinity)
-                        ResponsePanel(tabID: tabID)
-                            .frame(minWidth: 340, maxWidth: .infinity, maxHeight: .infinity)
+                    // An HSplitView here left the editor short of its pane and
+                    // clipped the response, so the divider is our own, as below.
+                    GeometryReader { geo in
+                        let minWidth = min(340, geo.size.width / 3)
+                        let maxWidth = geo.size.width - minWidth
+                        let width = min(max(geo.size.width * (editorWidth > 0 ? editorWidth : 0.5), minWidth), maxWidth)
+                        HStack(spacing: 0) {
+                            RequestEditor(tab: tab)
+                                .frame(width: width)
+                                .frame(maxHeight: .infinity)
+                            ResizeHandle(
+                                axis: .horizontal,
+                                onDrag: { dx in
+                                    let start = dragStart ?? width
+                                    dragStart = start
+                                    editorWidth = min(max(start + dx, minWidth), maxWidth) / geo.size.width
+                                },
+                                onEnd: { dragStart = nil },
+                                onReset: { editorWidth = 0 }
+                            )
+                            ResponsePanel(tabID: tabID)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
                 } else {
                     // Editor pinned under the URL bar, response takes the rest. A
@@ -36,6 +56,7 @@ struct RequestView: View {
                         VStack(spacing: 0) {
                             RequestEditor(tab: tab, contentHeight: height)
                             ResizeHandle(
+                                axis: .vertical,
                                 onDrag: { dy in
                                     let start = dragStart ?? height
                                     dragStart = start
@@ -60,7 +81,9 @@ struct RequestView: View {
 private var defaultEditorHeight: CGFloat { (NSScreen.main?.frame.height ?? 900) * 0.2 }
 
 /// The divider between editor and response: drag to resize, double-click to reset.
+/// `.vertical` stacks them (a horizontal line dragged up and down), `.horizontal` puts them side by side.
 private struct ResizeHandle: View {
+    let axis: Axis
     let onDrag: (CGFloat) -> Void
     let onEnd: () -> Void
     let onReset: () -> Void
@@ -68,16 +91,16 @@ private struct ResizeHandle: View {
     var body: some View {
         // A 7pt grab strip around a hairline.
         Color.clear
-            .frame(maxWidth: .infinity)
-            .frame(height: 7)
+            .frame(width: axis == .horizontal ? 7 : nil, height: axis == .vertical ? 7 : nil)
+            .frame(maxWidth: axis == .vertical ? .infinity : nil, maxHeight: axis == .horizontal ? .infinity : nil)
             .overlay(Divider())
             .contentShape(Rectangle())
             .onHover { inside in
-                if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+                if inside { (axis == .vertical ? NSCursor.resizeUpDown : NSCursor.resizeLeftRight).push() } else { NSCursor.pop() }
             }
             // Global space: the handle moves while dragged, so local translation would jitter.
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                .onChanged { onDrag($0.translation.height) }
+                .onChanged { onDrag(axis == .vertical ? $0.translation.height : $0.translation.width) }
                 .onEnded { _ in onEnd() })
             .onTapGesture(count: 2, perform: onReset)
             .help("Drag to resize. Double-click to reset.")

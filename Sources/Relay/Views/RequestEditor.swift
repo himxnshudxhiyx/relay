@@ -290,20 +290,29 @@ private struct BodyEditor: View {
 
         VStack(spacing: 0) {
             HStack(spacing: 4) {
-                ForEach(BodyMode.allCases) { option in
-                    ModeChip(title: option.chipTitle, selected: option == mode) {
-                        ws.updateDraft(tabID) { $0.body.mode = option }
+                // Scrolls sideways when the pane is narrow (response beside the
+                // request) instead of squeezing the chips into "JS…".
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(BodyMode.allCases) { option in
+                            ModeChip(title: option.chipTitle, selected: option == mode) {
+                                ws.updateDraft(tabID) { $0.body.mode = option }
+                            }
+                        }
                     }
                 }
                 Spacer(minLength: 8)
-                if mode == .json {
-                    JSONStatus(text: request.body.raw)
-                    Button("Beautify") { beautify(request.body.raw, xml: false) }
-                        .buttonStyle(SecondaryButtonStyle(height: 28))
-                } else if mode == .xml {
-                    Button("Beautify") { beautify(request.body.raw, xml: true) }
-                        .buttonStyle(SecondaryButtonStyle(height: 28))
+                Group {
+                    if mode == .json {
+                        JSONStatus(text: request.body.raw)
+                        Button("Beautify") { beautify(request.body.raw, xml: false) }
+                            .buttonStyle(SecondaryButtonStyle(height: 28))
+                    } else if mode == .xml {
+                        Button("Beautify") { beautify(request.body.raw, xml: true) }
+                            .buttonStyle(SecondaryButtonStyle(height: 28))
+                    }
                 }
+                .fixedSize()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
@@ -352,6 +361,8 @@ private struct ModeChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
+                .lineLimit(1)
+                .fixedSize()
                 .font(.app(12.5, selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Theme.accent : Color.secondary)
                 .padding(.horizontal, 10)

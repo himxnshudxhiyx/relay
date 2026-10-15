@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:Relay.App.Views"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
+        x:Class="Relay.App.MainWindow"
+        Title="Relay" Width="1340" Height="860" MinWidth="980" MinHeight="620"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="44"
+        Background="{DynamicResource Canvas}">
+  <Grid>
+    <Grid x:Name="Columns" ColumnDefinitions="280,1,*">
+      <!-- Full-height sidebar, like the Mac app: it runs up under the window buttons. -->
+      <v:SidebarView x:Name="Sidebar" Grid.Column="0" />
+      <GridSplitter Grid.Column="1" Width="1" MinWidth="1" Background="{DynamicResource Line}" ResizeDirection="Columns" />
+
+      <Grid Grid.Column="2" RowDefinitions="44,Auto,*">
+        <!-- Title bar: drags the window; the Windows caption buttons sit over its right end. -->
+        <Border Grid.Row="0" Background="{DynamicResource Chrome}" chrome:WindowDecorationProperties.ElementRole="TitleBar" />
+        <Grid Grid.Row="0" x:Name="TitleRow" ColumnDefinitions="*,Auto" Margin="20,0,0,0">
+          <TextBlock x:Name="TitleText" Text="Relay" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" IsHitTestVisible="False" />
+          <StackPanel x:Name="Toolbar" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,12,0" />
+        </Grid>
+        <v:TabStripView Grid.Row="1" x:Name="TabStrip" />
+        <ContentControl Grid.Row="2" x:Name="Detail" />
+      </Grid>
+    </Grid>
+
+    <!-- Toast -->
+    <Border x:Name="Toast" IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,28"
+            Padding="16,9" CornerRadius="18" Background="{DynamicResource Field}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+            BoxShadow="0 4 14 0 #33000000" IsHitTestVisible="False">
+      <TextBlock x:Name="ToastText" FontWeight="Medium" FontSize="12.5" />
+      <Border.Transitions>
+        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2" /></Transitions>
+      </Border.Transitions>
+    </Border>
+  </Grid>
+</Window>

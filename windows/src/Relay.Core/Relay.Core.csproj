@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Models and logic, no UI: everything here is ported from Sources/Relay/{Models,Core,Store}. -->
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Relay.Core.Tests" />
+  </ItemGroup>
+</Project>

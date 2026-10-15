@@ -14,7 +14,20 @@
   <img alt="universal" src="https://img.shields.io/badge/Apple%20silicon%20%2B%20Intel-universal-blue">
 </p>
 
-Built with SwiftUI. No dependencies, no account, no sync. Everything stays on your Mac.
+Built with SwiftUI. No dependencies, no account, no sync. Everything stays on your Mac. Also on [Windows](windows/README.md).
+
+## Download
+
+| Platform | Download | Requires |
+| --- | --- | --- |
+| **macOS** | [Relay-macOS.dmg](https://github.com/himxnshudxhiyx/relay/releases/latest/download/Relay-macOS.dmg) | macOS 14 or later, Apple silicon or Intel |
+| **Windows** | [Relay-Windows-x64.zip](https://github.com/himxnshudxhiyx/relay/releases/latest/download/Relay-Windows-x64.zip) | Windows 10 or 11, 64-bit |
+| **Windows on ARM** | [Relay-Windows-arm64.zip](https://github.com/himxnshudxhiyx/relay/releases/latest/download/Relay-Windows-arm64.zip) | Windows 11 on ARM (Surface, Snapdragon) |
+
+All versions are on the [Releases](https://github.com/himxnshudxhiyx/relay/releases) page.
+
+- **macOS:** open the `.dmg` and drag **Relay** to Applications. The first launch needs one extra step, since the app isn't notarized by Apple: see [below](#on-another-mac).
+- **Windows:** unzip and run `Relay.exe`; there's nothing to install. The first launch shows "Windows protected your PC": click **More info**, then **Run anyway**.
 
 ---
 
@@ -80,6 +93,16 @@ This writes `dist/Relay-1.0.dmg` (and a `.zip`). Copy it over, open it, and drag
 Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/Relay.app`
 
 The other Mac needs macOS 14 (Sonoma) or later. Both Apple silicon and Intel work.
+
+### On Windows
+
+A Windows version lives in [`windows/`](windows/README.md): same features and design, built with .NET and Avalonia.
+
+```bash
+windows/build.sh
+```
+
+This writes `windows/dist/Relay-1.0.0-Windows-x64.zip` (and `-arm64`), each a single `Relay.exe`. Its data format matches the Mac app's, so a `workspace.json` can be copied between the two.
 
 ## Keyboard shortcuts
 
