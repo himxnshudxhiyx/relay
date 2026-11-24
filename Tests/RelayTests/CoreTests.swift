@@ -236,3 +236,23 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(EmbeddedFile.find(inJSON: Data(#"{"pdf":"short"}"#.utf8)).isEmpty)
     }
 }
+
+final class EnvelopeTests: XCTestCase {
+    func testOpenDecryptsResponse() throws {
+        let server = try Envelope.generateKey()
+        let fields = try Envelope.encrypt(#"{"mobileNo":"9999999999"}"#, to: SecKeyCopyPublicKey(server)!, field: "responseData")
+        XCTAssertEqual(Data(base64Encoded: fields["nonce"]!)?.count, 12)
+        let body = try JSONSerialization.data(withJSONObject: fields)
+        XCTAssertEqual(Envelope.open(body, key: server), #"{"mobileNo":"9999999999"}"#)
+        XCTAssertNil(Envelope.open(Data(#"{"status":200}"#.utf8), key: server))
+    }
+
+    func testRekeySwapsOnlyRaw() throws {
+        XCTAssertNil(try Envelope.rekey(#"{"mobileNo":"1"}"#), "a plain body is left alone")
+        let rekeyed = try XCTUnwrap(try Envelope.rekey(#"{"requestData":"d","encryptedKey":"k","nonce":"n","raw":"old"}"#))
+        let json = try JSONSerialization.jsonObject(with: Data(rekeyed.wire.utf8)) as! [String: String]
+        XCTAssertEqual(json["requestData"], "d")
+        XCTAssertEqual(json["encryptedKey"], "k")
+        XCTAssertEqual(json["raw"], try Envelope.spki(SecKeyCopyPublicKey(rekeyed.key)!).base64EncodedString())
+    }
+}

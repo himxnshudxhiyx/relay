@@ -44,6 +44,8 @@ struct HTTPResult {
     var curl = ""
     /// Base64 files inside a JSON body (a PDF, an image), for the Preview view.
     var files: [EmbeddedFile] = []
+    /// The decrypted body of an encrypted response, formatted.
+    var decrypted: String?
 
     var statusText: String { HTTPStatus.phrase(status) }
     var contentType: String { header("Content-Type") ?? "" }
@@ -367,7 +369,7 @@ enum Format {
         if includeHeaders {
             out += result.headers.map { "\($0.name): \($0.value)" }.joined(separator: "\n") + "\n"
         }
-        let body = result.pretty ?? result.text
+        let body = result.decrypted ?? result.pretty ?? result.text
         if !body.isEmpty { out += "\n" + body }
         return out
     }

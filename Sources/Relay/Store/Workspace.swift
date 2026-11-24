@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import Security
 import SwiftUI
 
 struct RequestTab: Identifiable, Hashable, Codable {
@@ -646,11 +647,22 @@ final class Workspace {
         let options = SendOptions.current
         let started = Date()
         let snapshot = tab.draft
-        let curl = CurlGenerator.generate(prepared)
         let task = Task { [weak self] in
             do {
+                var prepared = prepared
+                var key: SecKey?
+                // Already encrypted (copied from the app): never encrypt twice, just take the reply.
+                if snapshot.body.mode == .json, case .raw(let body) = prepared.body,
+                   let rekeyed = try Envelope.rekey(body) {
+                    prepared.body = .raw(rekeyed.wire)
+                    key = rekeyed.key
+                }
                 var result = try await HTTPClient.send(prepared, options: options)
-                result.curl = curl
+                result.curl = CurlGenerator.generate(prepared)
+                if let key, let plain = Envelope.open(result.body, key: key) {
+                    result.decrypted = JSONFormat.pretty(plain) ?? plain
+                    result.files = EmbeddedFile.find(inJSON: Data(plain.utf8))
+                }
                 self?.finish(tabID, started: started, request: snapshot, outcome: .success(result))
             } catch is CancellationError {
                 // Cancelled by the user; `cancel` already reset the state.

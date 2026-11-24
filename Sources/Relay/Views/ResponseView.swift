@@ -73,15 +73,22 @@ private struct ResponseContent: View {
     @AppStorage("wrapResponse") private var wrap = true
     @AppStorage("prettyResponse") private var pretty = true
     @State private var previewing = false
+    /// Encrypted responses open on Decrypted; this is set once you pick the wire view.
+    @State private var showWire = false
 
-    private enum Mode { case pretty, raw, preview }
+    private enum Mode { case decrypted, pretty, raw, preview }
 
     private var mode: Binding<Mode> {
         Binding(
-            get: { previewing && !result.files.isEmpty ? .preview : (pretty ? .pretty : .raw) },
+            get: {
+                if previewing && !result.files.isEmpty { return .preview }
+                if result.decrypted != nil && !showWire { return .decrypted }
+                return pretty ? .pretty : .raw
+            },
             set: { mode in
                 previewing = mode == .preview
-                if mode != .preview { pretty = mode == .pretty }
+                showWire = mode != .decrypted
+                if mode == .pretty || mode == .raw { pretty = mode == .pretty }
             }
         )
     }
@@ -154,7 +161,8 @@ private struct ResponseContent: View {
         case .json, .xml, .html, .text:
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    let modes = (result.pretty != nil ? [(Mode.pretty, "Pretty"), (.raw, "Raw")] : [])
+                    let modes = (result.decrypted != nil ? [(Mode.decrypted, "Decrypted")] : [])
+                        + (result.pretty != nil ? [(Mode.pretty, "Pretty"), (.raw, "Raw")] : [])
                         + (result.files.isEmpty ? [] : [(Mode.preview, "Preview")])
                     if modes.count > 1 {
                         PillPicker(options: modes, selection: mode)
@@ -179,7 +187,8 @@ private struct ResponseContent: View {
                 if mode.wrappedValue == .preview {
                     FilePreview(files: result.files, fallbackName: fileName)
                 } else {
-                    CodeEditor(content: pretty ? (result.pretty ?? result.text) : result.text,
+                    CodeEditor(content: mode.wrappedValue == .decrypted ? (result.decrypted ?? "")
+                                        : pretty ? (result.pretty ?? result.text) : result.text,
                                language: language, wraps: wrap, folds: language == .json)
                 }
             }
@@ -221,7 +230,8 @@ private struct ResponseContent: View {
         let ext = UTType(mimeType: mime)?.preferredFilenameExtension ?? "txt"
         let name = fileName
         // Saved as shown: formatted while Pretty is on, the server's bytes on Raw.
-        let data = pretty ? result.pretty.map { Data($0.utf8) } ?? result.body : result.body
+        let data = mode.wrappedValue == .decrypted ? Data((result.decrypted ?? "").utf8)
+            : pretty ? result.pretty.map { Data($0.utf8) } ?? result.body : result.body
         FilePanels.save(data, suggestedName: "\(name).\(ext)")
     }
 }
@@ -257,7 +267,7 @@ private struct CopyMenu: View {
 
     private var menu: some View {
         Menu {
-            Button("Response Body") { ws.copy(result.pretty ?? result.text, "response body") }
+            Button("Response Body") { ws.copy(result.decrypted ?? result.pretty ?? result.text, "response body") }
             Button("Response Headers") {
                 ws.copy(result.headers.map { "\($0.name): \($0.value)" }.joined(separator: "\n"), "headers")
             }
